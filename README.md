@@ -355,6 +355,8 @@ java -Xmx256m -Xms256m  -cp $KVHOME/lib/kvclient.jar:$PROJETHOME marketing.Load
 - Alimentation du data lake (imporation des données `CO2.csv` et `Catalogue.csv` dans HDFS)
 
 ```bash
+hadoop fs -mkdir tpa                                                    # création du dossier tpa  
+
 hadoop fs -put /vagrant/BigData/Groupe_TPA_13/CO2.csv tpa               # copier le fichier CO2.csv dans le dossier tpa dans hdfs
 hadoop fs -put /vagrant/BigData/Groupe_TPA_13/Catalogue.csv tpa         # copier le fichier Catalogue.csv dans le dossier tpa dans hdfs          
 ```
