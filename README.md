@@ -360,3 +360,86 @@ hadoop fs -mkdir tpa                                                    # créat
 hadoop fs -put /vagrant/BigData/Groupe_TPA_13/CO2.csv tpa               # copier le fichier CO2.csv dans le dossier tpa dans hdfs
 hadoop fs -put /vagrant/BigData/Groupe_TPA_13/Catalogue.csv tpa         # copier le fichier Catalogue.csv dans le dossier tpa dans hdfs          
 ```
+
+-  Création des tables externes (MARKETING_EXT) HIVE pointant vers les tables physiques Oracle Nosql
+```bash
+# start hadoop hive
+nohup hive --service metastore > /dev/null &
+nohup hiveserver2 > /dev/null &
+
+# enter on beeline
+beeline
+
+# connect to hive
+!connect jdbc:hive2://localhost:10000
+Enter username for jdbc:hive2://localhost:10000: oracle
+Enter password for jdbc:hive2://localhost:10000: ******** (welcome1)
+```
+
+```sql
+-- create the marketing external table
+CREATE EXTERNAL TABLE  MARKETING_EXT  (
+    id int, 
+    age int, 
+    sexe string,
+    taux int,
+    situationFamiliale string,
+    nbEnfantsAcharge int,
+    has2emeVoiture boolean
+)
+STORED BY 'oracle.kv.hadoop.hive.table.TableStorageHandler'
+TBLPROPERTIES (
+"oracle.kv.kvstore" = "kvstore",
+"oracle.kv.hosts" = "localhost:5000", 
+"oracle.kv.hadoop.hosts" = "localhost/127.0.0.1", 
+"oracle.kv.tableName" = "marketing");
+```
+
+-  Création des tables externes (IMMATRICULATION_EXT) HIVE pointant vers les tables physiques Mongodb
+```bash
+# start hadoop hive
+nohup hive --service metastore > /dev/null &
+nohup hiveserver2 > /dev/null &
+
+# enter on beeline
+beeline
+
+# connect to hive
+!connect jdbc:hive2://localhost:10000/
+Enter username for jdbc:hive2://localhost:10000: oracle
+Enter password for jdbc:hive2://localhost:10000: ******** (welcome1)
+```
+
+```sql
+-- create the Immatriculation external table
+
+CREATE EXTERNAL TABLE IMMATRICULATION_EXT (
+    id string,
+    immatriculation string,
+    marque string,
+    nom string,
+    puissance int,
+    longueur string,
+    nbPlaces int,
+    nbPortes int,
+    couleur string,
+    occasion string,
+    prix int
+)
+STORED BY 'com.mongodb.hadoop.hive.MongoStorageHandler'
+WITH 
+    SERDEPROPERTIES('mongo.columns.mapping'='{
+        "id":"_id",
+        "immatriculation":"immatriculation",
+        "marque":"marque",
+        "nom":"nom",
+        "puissance":"puissance",
+        "longueur":"longueur",
+        "nbPlaces":"nbPlaces",
+        "nbPortes":"nbPortes",
+        "couleur":"couleur",
+        "occasion":"occasion",
+        "prix":"prix"
+    }')
+TBLPROPERTIES('mongo.uri'='mongodb://127.0.0.1:27017/voiture.immatriculation');
+```
