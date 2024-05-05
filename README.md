@@ -425,6 +425,36 @@ USE concessionaire;
 
 DROP TABLE IMMATRICULATION_EXT;
 
+CREATE EXTERNAL TABLE IMMATRICULATION_EXT (
+    id string,
+    immatriculation string,
+    marque string,
+    nom string,
+    puissance int,
+    longueur string,
+    nbPlaces int,
+    nbPortes int,
+    couleur string,
+    occasion string,
+    prix int
+)
+STORED BY 'com.mongodb.hadoop.hive.MongoStorageHandler'
+WITH 
+    SERDEPROPERTIES('mongo.columns.mapping'='{
+        "id":"_id",
+        "immatriculation":"immatriculation",
+        "marque":"marque",
+        "nom":"nom",
+        "puissance":"puissance",
+        "longueur":"longueur",
+        "nbPlaces":"nbPlaces",
+        "nbPortes":"nbPortes",
+        "couleur":"couleur",
+        "occasion":"occasion",
+        "prix":"prix"
+    }')
+TBLPROPERTIES('mongo.uri'='mongodb://127.0.0.1:27017/voiture.immatriculation');
+
 show tables
 ```
 - Transformed catalog data with `catalogue/catalogue.py`
