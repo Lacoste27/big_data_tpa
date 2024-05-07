@@ -86,7 +86,7 @@ updated_catalog_df = df_resultat.withColumn("Bonus / Malus", coalesce(df_resulta
     .withColumn("Cout Energie", coalesce(df_resultat["Cout Energie"], lit(moyenne_values["Moyenne_Cout_Energie"])))
 updated_catalog_df.show()
 
-updated_catalog_df.repartition(1).write.csv("tpa/transformed_catalog" , mode="overwrite" , header=True)
+updated_catalog_df.repartition(1).write.csv("tpa/transformed_catalog" , mode="overwrite" , header=False)
 
 
 spark.stop()
