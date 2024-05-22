@@ -6,13 +6,13 @@ library(dplyr)
 library(rpart)
 library(rpart.plot)
 
-hive_jdbc_jar <- "/home/aceky/Downloads/jars/hive-jdbc-3.1.3-standalone.jar"
+hive_jdbc_jar <- "C:/Vm/INSTALL_MV_BIGDATA_BOX/lib/hive-jdbc-3.1.3-standalone.jar"
 hive_driver <- "org.apache.hive.jdbc.HiveDriver"
-hive_url <- "jdbc:hive2://localhost:10000/concessionnaire_automobile"
+hive_url <- "jdbc:hive2://localhost:10000/"
 drv <- JDBC(hive_driver, hive_jdbc_jar, "`")
-conn <- dbConnect(drv, hive_url, "vagrant", "")
+conn <- dbConnect(drv, hive_url, "oracle", "welcome1")
 
-query <- "SELECT * FROM v_clients"
+query <- "SELECT * FROM concessionaire.client_immatriculation"
 result <- dbGetQuery(conn, query)
 clients_imma_df <- as.data.frame(result)
 colnames(clients_imma_df) <- sub("^v_clients\\.", "", colnames(clients_imma_df))

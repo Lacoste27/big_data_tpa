@@ -1,6 +1,6 @@
 # Projet TPA
 
-## Etape :
+## Alimentation
 
 - Alimentation du data lake (imporation des données `Immatriculation` et `Client` dans mongodb)
 
@@ -8,15 +8,9 @@
 # création de la base voiture dans mongodb
 > use voiture
 
-# création de la collection immatriculation
-> db.createCollection('immatriculation');
-
 # création de la collection client
 > db.createCollection('client');
 > exit
-
-# imporation du donnée immatriculation.csv avec mongoimport
-mongoimport --db voiture  --collection immatriculation  --type csv --headerline --file /vagrant/BigData/Groupe_TPA_13/Immatriculations.csv
 
 # imporation du donnée client_3.csv et client_12.csv avec mongoimport
 mongoimport --db voiture  --collection client  --type csv --headerline --file /vagrant/BigData/Groupe_TPA_13/Clients_12.csv
@@ -352,13 +346,15 @@ javac -g -cp $KVHOME/lib/kvclient.jar:$PROJETHOME $PROJETHOME/marketing/Load.jav
 java -Xmx256m -Xms256m  -cp $KVHOME/lib/kvclient.jar:$PROJETHOME marketing.Load
 ```
 
-- Alimentation du data lake (imporation des données `CO2.csv` et `Catalogue.csv` dans HDFS)
+- Alimentation du data lake (imporation des données `Immatriculation.csv`, `CO2.csv` et `Catalogue.csv` dans HDFS)
 
 ```bash
-hadoop fs -mkdir tpa                                                    # création du dossier tpa  
+hadoop fs -mkdir tpa                                                                                # création du dossier tpa 
+hadoop fs -mkdir tpa/immatriculation                                                                # création du dossier tpa/immatriculation 
 
-hadoop fs -put /vagrant/BigData/Groupe_TPA_13/CO2.csv tpa               # copier le fichier CO2.csv dans le dossier tpa dans hdfs
-hadoop fs -put /vagrant/BigData/Groupe_TPA_13/Catalogue.csv tpa         # copier le fichier Catalogue.csv dans le dossier tpa dans hdfs          
+hadoop fs -put /vagrant/BigData/Groupe_TPA_13/Immatriculations.csv tpa/immatriculation               # copier le fichier Immatriculation dans le dossier tpa dans hdfs
+hadoop fs -put /vagrant/BigData/Groupe_TPA_13/CO2.csv tpa                                           # copier le fichier CO2.csv dans le dossier tpa dans hdfs
+hadoop fs -put /vagrant/BigData/Groupe_TPA_13/Catalogue.csv tpa                                     # copier le fichier Catalogue.csv dans le dossier tpa dans hdfs          
 ```
 
 -  Création des tables externes (MARKETING_EXT) HIVE pointant vers les tables physiques Oracle Nosql
@@ -425,8 +421,7 @@ USE concessionaire;
 
 DROP TABLE IMMATRICULATION_EXT;
 
-CREATE EXTERNAL TABLE IMMATRICULATION_EXT (
-    id string,
+CREATE EXTERNAL TABLE  IMMATRICULATION_EXT  (
     immatriculation string,
     marque string,
     nom string,
@@ -438,24 +433,9 @@ CREATE EXTERNAL TABLE IMMATRICULATION_EXT (
     occasion string,
     prix int
 )
-STORED BY 'com.mongodb.hadoop.hive.MongoStorageHandler'
-WITH 
-    SERDEPROPERTIES('mongo.columns.mapping'='{
-        "id":"_id",
-        "immatriculation":"immatriculation",
-        "marque":"marque",
-        "nom":"nom",
-        "puissance":"puissance",
-        "longueur":"longueur",
-        "nbPlaces":"nbPlaces",
-        "nbPortes":"nbPortes",
-        "couleur":"couleur",
-        "occasion":"occasion",
-        "prix":"prix"
-    }')
-TBLPROPERTIES('mongo.uri'='mongodb://127.0.0.1:27017/voiture.immatriculation');
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+STORED AS TEXTFILE LOCATION 'tpa/immatriculation';
 
-show tables
 ```
 - Transformed catalog data with `catalogue/catalogue.py`
 ```python
@@ -580,13 +560,75 @@ STORED AS TEXTFILE LOCATION 'tpa/transformed_catalog';
 
 - Création de la table interne client dans HIVE
 ```sql
-CREATE TABLE  CLIENT  (
+CREATE TABLE  CLIENTS  (
     age int,
     sexe string,
     taux int,
     situationFamiliale string,
-    nbEnfantACharge int,
-    has2emeVoiture boolean,
+    nbEnfantsACharge int,
+    deuxiemeVoiture boolean,
     immatriculation string
 );
+```
+
+## Analyse
+
+- Création d'un view `client_immatriculation` pour la fusion des données client et immatriculation
+```sql
+CREATE VIEW v_clients AS SELECT c.age clients_age, c.sexe clients_sexe, c.taux clients_taux , c.situationFamiliale clients_situationfamiliale, c.nbenfantsacharge clients_nbenfantacharge , c.deuxiemeVoiture clients_deuxiemevoiture, i.marque immatriculation_marque, i.nom immatriculation_nom, i.puissance immatriculation_puissance, i.longueur immatriculation_longueur, i.nbplaces immatriculation_nbplaces, i.nbportes immatriculation_nbportes , i.couleur immatriculation_couleur, i.occasion immatriculation_occasion, i.prix immatriculation_prix, i.immatriculation FROM clients AS C JOIN immatriculation_ext i ON(i.immatriculation=c.immatriculation);
+```
+
+- Insértion des résultats dans Oracle depuis R
+``` bash
+# connect to oracle database 
+
+sudo -su oracle
+sqlplus /nolog
+```
+
+```sql
+-- se connecter avec compte system pour créer un utilisateur mbds
+connect system@ORCLPDB/Welcome1
+
+-- création de l'utilisateur MBDS
+create user MBDS identified by PassMbds
+default tablespace users
+temporary tablespace temp;
+
+grant dba to MBDS;
+
+-- ALTER USER MBDS QUOTA UNLIMITED ON USERS;
+
+revoke unlimited tablespace from MBDS;
+
+-- se connecter avec le compte MBDS
+connect MBDS@ORCLPDB1/PassMbds;
+
+-- création de la table de résultat des prédictions
+CREATE Table Marketing_Result (
+    age  INTEGER,  
+    sexe   VARCHAR(5), 
+    taux  INTEGER, 
+    situationFamiliale  VARCHAR(50), 
+    nbEnfantsAcharge     INTEGER, 
+    has2emeVoiture     VARCHAR(10),
+    categorie VARCHAR(50)
+);
+
+
+INSERT INTO Marketing_Result VALUES(10, 'F', 230, 'Célibataire',2, 'true','Familiale');
+```
+
+```R
+library('ROracle')
+driver <- dbDriver("Oracle")
+ORCL <-"
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = localhost)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVICE_NAME = ORCLPDB)
+    )
+  )
+"
+connection <- dbConnect(driver, username = "MBDS", password = "PassMbds",dbname=ORCL) 
 ```
